@@ -4,7 +4,7 @@ import Controls from './components/Controls.jsx'
 import Stats from './components/Stats.jsx'
 import { api } from './api/client.js'
 
-const DEFAULT_CAMERA = { pos: [0, 1.5, 6], target: [0, 0.6, 0] }
+const DEFAULT_CAMERA = { pos: [0, 1.2, 5.5], target: [0, 0.3, 0] }
 
 export default function App() {
   const controlsRef = useRef(null)
