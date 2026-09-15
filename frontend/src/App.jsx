@@ -3,6 +3,7 @@ import Scene from './components/Scene.jsx'
 import Controls from './components/Controls.jsx'
 import Stats from './components/Stats.jsx'
 import { api } from './api/client.js'
+import { rumAction } from './api/rum.js'
 
 const DEFAULT_CAMERA = { pos: [0, 1.5, 6], target: [0, 0.6, 0] }
 
@@ -52,11 +53,13 @@ export default function App() {
 
   // ---- 交互（左侧 Model Controls） ----
   const handleRotate = () => {
+    rumAction('model.rotate')
     setSpinKey((k) => k + 1)
     api.trackInteraction('rotate').then(refreshStats).catch(() => {})
   }
 
   const zoomBy = (factor, type) => {
+    rumAction('model.zoom', { type })
     const c = controlsRef.current
     if (!c) return
     const dir = c.object.position.clone().sub(c.target)
@@ -70,6 +73,7 @@ export default function App() {
   const handleZoomOut = () => zoomBy(1.25, 'zoom_out')
 
   const handleReset = () => {
+    rumAction('model.reset')
     const c = controlsRef.current
     if (c) {
       c.object.position.set(...DEFAULT_CAMERA.pos)
@@ -81,6 +85,7 @@ export default function App() {
 
   // ---- 动作（Actions） ----
   const handleAction = async (name) => {
+    rumAction('model.action', { action: name })
     setActiveAction(name)
     setActionKey((k) => k + 1)
     try {

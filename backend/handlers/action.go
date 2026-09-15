@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 
+	"datadog-demo/backend/observability"
 	"datadog-demo/backend/stats"
 )
 
@@ -23,17 +24,20 @@ func HandleAction(w http.ResponseWriter, r *http.Request) {
 	var req actionRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		stats.IncErrors()
+		observability.Incr("rock.errors", "type:bad_request")
 		writeError(w, http.StatusBadRequest, "invalid JSON body")
 		return
 	}
 
 	if !validActions[req.Action] {
 		stats.IncErrors()
+		observability.Incr("rock.errors", "type:unknown_action")
 		writeError(w, http.StatusBadRequest, "unknown action: "+req.Action)
 		return
 	}
 
 	stats.IncActions()
+	observability.Incr("rock.actions", "action:"+req.Action)
 	writeJSON(w, http.StatusOK, map[string]any{
 		"success": true,
 		"action":  req.Action,

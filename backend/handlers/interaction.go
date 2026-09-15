@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 
+	"datadog-demo/backend/observability"
 	"datadog-demo/backend/stats"
 )
 
@@ -20,6 +21,7 @@ func HandleInteraction(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	stats.IncInteractions()
+	observability.Incr("rock.interactions", "type:"+req.Type)
 	writeJSON(w, http.StatusOK, map[string]any{
 		"success": true,
 		"type":    req.Type,

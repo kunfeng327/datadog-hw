@@ -42,9 +42,33 @@ frontend/  React + Vite + Three.js (@react-three/fiber + drei)
            src/api/client.js 统一封装 fetch（含前端 latency 计时）
 ```
 
-## 为 Datadog 预留的挂载点
+## 为 Datadog 预留的挂载点（datadog-integration 分支已真实接入）
 
-- `backend/handlers/routes.go` — `withLogging` 中间件已输出 `POST /api/action status=200 latency=35ms` 格式日志，后续在此接入 Datadog logs / traces / metrics
-- `backend/handlers/common.go` — `writeJSON` / `writeError` 是统一的响应与错误出口，适合加 error tracking
-- `backend/stats/stats.go` — 所有自定义计数的唯一入口，可在此上报 custom metrics
-- `frontend/src/api/client.js` — 所有请求统一走这里，已测量 latency，后续可加 RUM / tracing
+后端（无 Agent 时自动降级，本地开发零依赖）：
+
+- `backend/observability/observability.go` — 集中封装 APM tracer（dd-trace-go）、DogStatsD 客户端、JSON 结构化日志
+- `backend/handlers/routes.go` — 每个路由一个 APM span（`http.request`），日志含 `trace_id`/`span_id`/`duration_ms`/`http.status_code`
+- 业务自定义 metrics：`rock.views` / `rock.actions`（tag: action）/ `rock.interactions`（tag: type）/ `rock.errors`（tag: type）
+- 请求级 metrics：`request.count` / `request.latency_ms` / `request.errors`
+
+前端（`@datadog/browser-rum`）：
+
+- `frontend/src/api/rum.js` — RUM 初始化（env 变量控制）+ `rumAction`/`rumError`
+- 3D 交互自定义事件：`model.rotate` / `model.zoom` / `model.reset` / `model.action`
+- `client.js` 中每个 API 请求自动上报 `api.request`（path/status/latency）与错误
+
+### 启用真实 Datadog
+
+后端（需运行 Datadog Agent，或使用 `DD_AGENT_URL` 指向网关）：
+
+```bash
+DD_SERVICE=rock-demo-api DD_ENV=prod DD_AGENT_HOST=<agent-host> go run .
+```
+
+前端（`frontend/.env.local`，需在 Datadog 创建 RUM Application）：
+
+```
+VITE_DD_RUM_APP_ID=<application id>
+VITE_DD_RUM_CLIENT_TOKEN=<client token>
+VITE_DD_SITE=datadoghq.com
+```
