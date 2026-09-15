@@ -11,6 +11,7 @@ import (
 	"context"
 	"encoding/json"
 	"log"
+	"os"
 	"time"
 
 	"gopkg.in/DataDog/dd-trace-go.v1/ddtrace"
@@ -33,13 +34,19 @@ func Start(service, env string) {
 		tracer.WithServiceVersion("0.2.0"),
 	)
 
-	client, err := statsd.New("127.0.0.1:8125",
-		statsd.WithTags([]string{"service:" + service, "env:" + env}),
-	)
-	if err != nil {
-		log.Printf("[observability] statsd unavailable (agent not running?), metrics degraded: %v", err)
+	// 无 Agent 模式（DD_DOGSTATSD_PORT=0）时跳过 DogStatsD，指标降级为 no-op；
+	// APM 仍可通过 DD_TRACE_AGENT_URL + DD_API_KEY 直连 Datadog 上报。
+	if os.Getenv("DD_DOGSTATSD_PORT") == "0" {
+		log.Println("[observability] agentless mode: statsd disabled, metrics no-op")
 	} else {
-		statsdClient = client
+		client, err := statsd.New("127.0.0.1:8125",
+			statsd.WithTags([]string{"service:" + service, "env:" + env}),
+		)
+		if err != nil {
+			log.Printf("[observability] statsd unavailable (agent not running?), metrics degraded: %v", err)
+		} else {
+			statsdClient = client
+		}
 	}
 }
 
