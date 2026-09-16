@@ -5,15 +5,15 @@
 }
 
 :root {
-  --bg: #0b0e17;
-  --panel: #111624;
-  --border: #1e2740;
-  --text: #e2e8f0;
-  --muted: #7d8aa5;
-  --accent: #7b2cbf;
-  --accent2: #219ebc;
-  --ok: #2dd4a7;
-  --err: #f0566a;
+  --bg: #a8d5f2;
+  --panel: rgba(255, 255, 255, 0.82);
+  --border: #bcd9a8;
+  --text: #23402a;
+  --muted: #5d7a5f;
+  --accent: #e67e22;
+  --accent2: #2e8b57;
+  --ok: #1e9e6a;
+  --err: #e05252;
 }
 
 body {
@@ -97,7 +97,7 @@ body {
   padding: 10px 8px;
   border: 1px solid var(--border);
   border-radius: 8px;
-  background: #161d30;
+  background: rgba(255, 255, 255, 0.55);
   color: var(--text);
   font-size: 13px;
   cursor: pointer;
@@ -105,11 +105,11 @@ body {
 }
 .btn:hover {
   border-color: var(--accent2);
-  background: #1b2540;
+  background: rgba(255, 255, 255, 0.85);
 }
 .btn.action.active {
   border-color: var(--accent);
-  box-shadow: 0 0 10px rgba(123, 44, 191, 0.5);
+  box-shadow: 0 0 10px rgba(230, 126, 34, 0.4);
 }
 
 /* ---- Stats panel ---- */
