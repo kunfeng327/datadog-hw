@@ -3,7 +3,17 @@
 
 const BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:9000'
 
-async function request(path, options = {}) {
+// 网络层失败（fetch 本身抛错，如后端不可达 / CORS）的统一错误标记
+function markNetworkError(err) {
+  err.isNetworkError = true
+  return err
+}
+
+// 带重试上限的请求：仅幂等的 GET 在网络层失败时重试 1 次，
+// 其余（POST）直接抛出，避免重复触发动作/统计。
+const MAX_GET_RETRIES = 1
+
+async function requestOnce(path, options) {
   const start = performance.now()
   try {
     const res = await fetch(BASE_URL + path, {
@@ -19,9 +29,25 @@ async function request(path, options = {}) {
     }
     return { data: await res.json(), latency }
   } catch (err) {
-    err.latency = Math.round(performance.now() - start)
-    throw err
+    if (!(err instanceof Error) || err.status) throw err // HTTP 错误不重试
+    throw markNetworkError(err) // TypeError: Failed to fetch 等网络错误
   }
+}
+
+async function request(path, options = {}) {
+  const isGet = !options.method || options.method === 'GET'
+  let lastErr
+  const attempts = isGet ? MAX_GET_RETRIES + 1 : 1
+  for (let i = 0; i < attempts; i++) {
+    try {
+      return await requestOnce(path, options)
+    } catch (err) {
+      lastErr = err
+      if (!err.isNetworkError) throw err // 只重试网络错误
+    }
+  }
+  lastErr.latency = Math.round(performance.now())
+  throw lastErr
 }
 
 export const api = {

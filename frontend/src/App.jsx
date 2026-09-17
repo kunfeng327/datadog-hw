@@ -29,25 +29,54 @@ export default function App() {
     }
   }, [])
 
-  // 启动时拉取模型信息；轮询健康 + 统计（3s）
+  // 启动时拉取模型信息；轮询健康 + 统计。
+  // 治理策略：页面隐藏时暂停；失败后退避（3s 起、翻倍至 30s 封顶）；
+  // 上一次请求未返回时跳过本轮，避免请求堆积。
   useEffect(() => {
     api
       .getModel()
       .then(({ data }) => setModelInfo(data))
       .catch(() => setModelInfo(null))
 
-    const timer = setInterval(async () => {
+    let timer = null
+    let inFlight = false
+    let interval = 3000
+    const MAX_INTERVAL = 30000
+
+    const tick = async () => {
+      if (document.hidden || inFlight) return
+      inFlight = true
       try {
         const { latency: ms } = await api.health()
         setOnline(true)
         setLatency(ms)
+        interval = 3000 // 恢复后重置为正常频率
+        refreshStats()
       } catch {
         setOnline(false)
         setLatency(null)
+        interval = Math.min(interval * 2, MAX_INTERVAL) // 失败退避
+      } finally {
+        inFlight = false
+        timer = setTimeout(tick, interval)
       }
-      refreshStats()
-    }, 3000)
-    return () => clearInterval(timer)
+    }
+    timer = setTimeout(tick, interval)
+
+    const onVisibility = () => {
+      if (!document.hidden && timer) {
+        // 回到页面立即恢复轮询
+        clearTimeout(timer)
+        interval = 3000
+        timer = setTimeout(tick, interval)
+      }
+    }
+    document.addEventListener('visibilitychange', onVisibility)
+
+    return () => {
+      clearTimeout(timer)
+      document.removeEventListener('visibilitychange', onVisibility)
+    }
   }, [refreshStats])
 
   // ---- 交互（左侧 Model Controls） ----
