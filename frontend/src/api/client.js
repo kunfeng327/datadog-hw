@@ -2,7 +2,9 @@
 // 便于以后统一加入 Datadog RUM / tracing / 错误上报。
 import { rum } from '../monitoring.js'
 
-const BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:9000'
+// 开发模式直连本地 Go 后端；生产（nginx 容器）走相对路径由 nginx 反代。
+const BASE_URL =
+  import.meta.env.VITE_API_BASE_URL || (import.meta.env.PROD ? '' : 'http://localhost:9000')
 
 // 网络层失败（fetch 本身抛错，如后端不可达 / CORS）的统一错误标记
 function markNetworkError(err) {
@@ -69,6 +71,13 @@ export const api = {
 
   // GET /api/stats — 运行统计
   getStats: () => request('/api/stats'),
+
+  // GET /api/items — 商品列表（backend → order-service 透传）
+  getItems: () => request('/api/items'),
+
+  // POST /api/order — 下单购买（跨服务：backend → order-service）
+  order: (itemId, quantity = 1) =>
+    request('/api/order', { method: 'POST', body: JSON.stringify({ itemId, quantity }) }),
 
   // GET /health — 后端健康检查
   health: () => request('/health'),
