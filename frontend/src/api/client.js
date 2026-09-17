@@ -1,5 +1,6 @@
 // 统一的前端 API 封装。所有对 Go 后端的请求都从这里走，
 // 便于以后统一加入 Datadog RUM / tracing / 错误上报。
+import { rum } from '../monitoring.js'
 
 const BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:9000'
 
@@ -15,22 +16,26 @@ const MAX_GET_RETRIES = 1
 
 async function requestOnce(path, options) {
   const start = performance.now()
+  const method = options.method || 'GET'
   try {
     const res = await fetch(BASE_URL + path, {
       headers: { 'Content-Type': 'application/json' },
       ...options,
     })
     const latency = Math.round(performance.now() - start)
+    rum.timing('api.request', latency, { method, path, status: res.status })
     if (!res.ok) {
       const body = await res.json().catch(() => ({}))
       const err = new Error(body.error || `HTTP ${res.status}`)
       err.status = res.status
+      rum.error(err, { method, path, status: res.status })
       throw err
     }
     return { data: await res.json(), latency }
   } catch (err) {
     if (!(err instanceof Error) || err.status) throw err // HTTP 错误不重试
-    throw markNetworkError(err) // TypeError: Failed to fetch 等网络错误
+    rum.error(err, { method, path, kind: 'network_error' }) // Failed to fetch 等
+    throw markNetworkError(err)
   }
 }
 

@@ -6,6 +6,8 @@ package handlers
 import (
 	"encoding/json"
 	"net/http"
+
+	"datadog-demo/backend/datadog"
 )
 
 // writeJSON 统一的 JSON 响应出口，后续可在这一处加 response logging。
@@ -15,8 +17,13 @@ func writeJSON(w http.ResponseWriter, status int, v any) {
 	_ = json.NewEncoder(w).Encode(v)
 }
 
-// writeError 统一错误响应出口，后续可在这一处加 error tracking。
+// writeError 统一错误响应出口，已接入 Datadog error tracking。
 func writeError(w http.ResponseWriter, status int, msg string) {
+	datadog.LogEntry(
+		"api error: "+msg,
+		"error",
+		map[string]any{"error": map[string]any{"kind": "api_error", "status_code": status, "message": msg}},
+	)
 	writeJSON(w, status, map[string]any{
 		"success": false,
 		"error":   msg,

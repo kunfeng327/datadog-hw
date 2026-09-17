@@ -3,9 +3,13 @@ package handlers
 import (
 	"log"
 	"net/http"
+	"strconv"
 	"time"
 
+	"datadog-demo/backend/datadog"
 	"datadog-demo/backend/stats"
+
+	httptrace "gopkg.in/DataDog/dd-trace-go.v1/contrib/net/http"
 )
 
 // statusRecorder 记录响应状态码，供日志中间件使用。
@@ -20,16 +24,44 @@ func (r *statusRecorder) WriteHeader(code int) {
 }
 
 // withLogging 请求日志中间件：method path status latency。
-// 这里是以后接入 Datadog logs / traces / metrics 的挂载点。
+// 已接入 Datadog：结构化日志 + latency histogram + 请求计数。
+// APM span 由外层 httptrace.WrapHandler 自动生成（见 NewMux）。
 func withLogging(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		start := time.Now()
 		rec := &statusRecorder{ResponseWriter: w, status: http.StatusOK}
-
 		next.ServeHTTP(rec, r)
 
-		log.Printf("%s %s status=%d latency=%s", r.Method, r.URL.Path, rec.status, time.Since(start))
+		latency := time.Since(start)
+		log.Printf("%s %s status=%d latency=%s", r.Method, r.URL.Path, rec.status, latency)
+
+		// 日志（Datadog 官方 JSON 日志格式）
+		fields := map[string]any{
+			"http": map[string]any{
+				"method":      r.Method,
+				"url":         map[string]any{"path": r.URL.Path},
+				"status_code": rec.status,
+			},
+			"network": map[string]any{"client": map[string]any{"ip": r.RemoteAddr}},
+			"duration": latency.Milliseconds(),
+		}
+		statusTag := "status:" + strconv.Itoa(rec.status)
+		datadog.LogEntry(r.Method+" "+r.URL.Path, statusLevel(rec.status), fields)
+		datadog.Histogram("backend.request_latency", latency.Seconds()*1000, statusTag)
+		datadog.Count("backend.requests", 1, statusTag)
 	})
+}
+
+// statusLevel 按状态码映射 Datadog 日志级别。
+func statusLevel(code int) string {
+	switch {
+	case code >= 500:
+		return "error"
+	case code >= 400:
+		return "warn"
+	default:
+		return "info"
+	}
 }
 
 // withCORS 允许 Vite 开发服务器 (localhost:5173) 跨域访问。
@@ -64,5 +96,6 @@ func NewMux() http.Handler {
 	mux.HandleFunc("POST /api/interaction", HandleInteraction)
 	mux.HandleFunc("GET /api/stats", HandleStats)
 	mux.HandleFunc("GET /health", HandleHealth)
-	return withStats(withLogging(withCORS(mux)))
+	handler := withStats(withLogging(withCORS(mux)))
+	return httptrace.WrapHandler(handler, "rock-3d-backend", "http.request")
 }

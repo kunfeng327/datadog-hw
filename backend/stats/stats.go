@@ -3,7 +3,11 @@
 // 后续接入 Datadog 时，可以在这里的 Inc* 方法内上报自定义 metrics。
 package stats
 
-import "sync/atomic"
+import (
+	"sync/atomic"
+
+	"datadog-demo/backend/datadog"
+)
 
 type Counters struct {
 	// totalRequests: 处理的总请求数（不含 /health）
@@ -29,8 +33,9 @@ func Get() (views, interactions, actions, errors, total int64) {
 		global.TotalRequests.Load()
 }
 
-func IncTotalRequests() { global.TotalRequests.Add(1) }
-func IncViews()         { global.Views.Add(1) }
-func IncInteractions()  { global.Interactions.Add(1) }
-func IncActions()       { global.Actions.Add(1) }
-func IncErrors()        { global.Errors.Add(1) }
+// Inc* 方法：atomic 计数 + 同步上报 Datadog 自定义 metric（rock3d.*）。
+func IncTotalRequests() { global.TotalRequests.Add(1); datadog.Count("rock3d.total_requests", 1) }
+func IncViews()         { global.Views.Add(1); datadog.Count("rock3d.views", 1) }
+func IncInteractions()  { global.Interactions.Add(1); datadog.Count("rock3d.interactions", 1) }
+func IncActions()       { global.Actions.Add(1); datadog.Count("rock3d.actions", 1) }
+func IncErrors()        { global.Errors.Add(1); datadog.Count("rock3d.errors", 1) }
