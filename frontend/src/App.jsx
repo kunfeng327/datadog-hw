@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import Scene from './components/Scene.jsx'
 import Controls from './components/Controls.jsx'
 import Stats from './components/Stats.jsx'
+import OrderPanel from './components/OrderPanel.jsx'
 import { api } from './api/client.js'
 
 const DEFAULT_CAMERA = { pos: [0, 1.2, 5.5], target: [0, 0.3, 0] }
@@ -79,10 +80,21 @@ export default function App() {
     }
   }, [refreshStats])
 
+  // ---- 失败请求提示（toast） ----
+  // 任何 API 请求失败都在页面上短暂显示，不再静默吞掉。
+  const [toast, setToast] = useState(null)
+  const toastTimer = useRef(null)
+  const notifyError = (what, err) => {
+    const msg = `${what}失败：${err?.isNetworkError ? '网络错误（后端不可达）' : err?.message || '未知错误'}`
+    setToast(msg)
+    clearTimeout(toastTimer.current)
+    toastTimer.current = setTimeout(() => setToast(null), 4000)
+  }
+
   // ---- 交互（左侧 Model Controls） ----
   const handleRotate = () => {
     setSpinKey((k) => k + 1)
-    api.trackInteraction('rotate').then(refreshStats).catch(() => {})
+    api.trackInteraction('rotate').then(refreshStats).catch((err) => notifyError('记录交互', err))
   }
 
   const zoomBy = (factor, type) => {
@@ -92,7 +104,7 @@ export default function App() {
     dir.multiplyScalar(factor)
     c.object.position.copy(c.target.clone().add(dir))
     c.update()
-    api.trackInteraction(type).then(refreshStats).catch(() => {})
+    api.trackInteraction(type).then(refreshStats).catch((err) => notifyError('记录交互', err))
   }
 
   const handleZoomIn = () => zoomBy(0.8, 'zoom_in')
@@ -105,7 +117,7 @@ export default function App() {
       c.target.set(...DEFAULT_CAMERA.target)
       c.update()
     }
-    api.trackInteraction('reset').then(refreshStats).catch(() => {})
+    api.trackInteraction('reset').then(refreshStats).catch((err) => notifyError('记录交互', err))
   }
 
   // ---- 动作（Actions） ----
@@ -115,13 +127,14 @@ export default function App() {
     try {
       await api.triggerAction(name)
     } catch (err) {
-      console.error('action failed:', err)
+      notifyError(`触发动作 ${name}`, err)
     }
     refreshStats()
   }
 
   return (
     <div className="layout">
+      {toast && <div className="toast toast-err">{toast}</div>}
       <header className="header">
         <h1>THE ROCK <span className="accent">3D DEMO</span></h1>
         <div className="header-sub">
@@ -150,7 +163,10 @@ export default function App() {
         <div className="viewport-hint">drag to rotate · scroll to zoom</div>
       </main>
 
-      <Stats online={online} latency={latency} stats={stats} />
+      <div className="right-col">
+        <Stats online={online} latency={latency} stats={stats} />
+        <OrderPanel />
+      </div>
     </div>
   )
 }
