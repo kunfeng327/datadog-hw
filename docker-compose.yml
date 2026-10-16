@@ -33,6 +33,7 @@ services:
     build: ./backend
     environment:
       - ORDER_SERVICE_URL=http://order-service:9100
+      - ZHIPU_API_KEY=${ZHIPU_API_KEY}
       - DD_AGENT_HOST=datadog-agent
       - DD_ENV=development
       - DD_API_KEY=${DD_API_KEY}

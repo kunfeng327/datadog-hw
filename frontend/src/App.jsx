@@ -3,6 +3,7 @@ import Scene from './components/Scene.jsx'
 import Controls from './components/Controls.jsx'
 import Stats from './components/Stats.jsx'
 import OrderPanel from './components/OrderPanel.jsx'
+import ChatWidget from './components/ChatWidget.jsx'
 import { api } from './api/client.js'
 
 const DEFAULT_CAMERA = { pos: [0, 1.2, 5.5], target: [0, 0.3, 0] }
@@ -167,6 +168,8 @@ export default function App() {
         <Stats online={online} latency={latency} stats={stats} />
         <OrderPanel />
       </div>
+
+      <ChatWidget />
     </div>
   )
 }

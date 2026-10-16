@@ -97,6 +97,7 @@ func NewMux() http.Handler {
 	mux.HandleFunc("GET /api/stats", HandleStats)
 	mux.HandleFunc("GET /api/items", HandleItems)
 	mux.HandleFunc("POST /api/order", HandleOrder)
+	mux.HandleFunc("POST /api/chat", HandleChat) // 结账页购物助手（agent.md）
 	mux.HandleFunc("GET /health", HandleHealth)
 	handler := withStats(withLogging(withCORS(mux)))
 	return httptrace.WrapHandler(handler, "rock-3d-backend", "http.request")
