@@ -30,10 +30,16 @@ export default function Stats({ online, latency, stats = {} }) {
           ['Views', stats.views ?? 0],
           ['Interactions', stats.interactions ?? 0],
           ['Actions Triggered', stats.actions ?? 0],
-          ['API Errors', stats.errors ?? 0],
-        ].map(([label, value]) => (
+          [
+            'API Errors',
+            stats.errors ?? 0,
+            '后端返回的 HTTP 4xx/5xx 次数，服务重启后归零；不包含浏览器网络故障。',
+          ],
+        ].map(([label, value, description]) => (
           <div className="metric-row" key={label}>
-            <dt className="metric-label">{label}</dt>
+            <dt className="metric-label" title={description}>
+              {label}
+            </dt>
             <dd className="metric-value">{value ?? 0}</dd>
           </div>
         ))}
