@@ -118,8 +118,10 @@ class SceneAssetsTest(unittest.TestCase):
             self.assertAlmostEqual(sum(row), 1, places=6)
             self.assertTrue(all(0 <= w <= 1 for w in row))
             self.assertTrue(all(i < len(joints) for i in ids))
-            if y > 1.1 or y < -.4 or (abs(x) < .33 and y < .5):
-                self.assertEqual(row[0], 1, 'Torso, legs and head must not follow arms')
+            if (y > 1.1 or y < -.4 or (abs(x) < .33 and y < .5)
+                    or (z < -.22 and y < .75)):
+                self.assertEqual(row[0], 1,
+                                 'Torso, coat tails, legs and hair must not follow arms')
             if abs(x) > .43 and -.2 < y < .55:
                 arm_vertices += 1
                 self.assertLess(row[0], .1)
