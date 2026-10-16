@@ -3,6 +3,7 @@ import Scene from './components/Scene.jsx'
 import Controls from './components/Controls.jsx'
 import Stats from './components/Stats.jsx'
 import OrderPanel from './components/OrderPanel.jsx'
+import Icon from './components/Icon.jsx'
 import { api } from './api/client.js'
 
 const DEFAULT_CAMERA = { pos: [0, 1.2, 5.5], target: [0, 0.3, 0] }
@@ -94,7 +95,10 @@ export default function App() {
   // ---- 交互（左侧 Model Controls） ----
   const handleRotate = () => {
     setSpinKey((k) => k + 1)
-    api.trackInteraction('rotate').then(refreshStats).catch((err) => notifyError('记录交互', err))
+    api
+      .trackInteraction('rotate')
+      .then(refreshStats)
+      .catch((err) => notifyError('记录交互', err))
   }
 
   const zoomBy = (factor, type) => {
@@ -104,7 +108,10 @@ export default function App() {
     dir.multiplyScalar(factor)
     c.object.position.copy(c.target.clone().add(dir))
     c.update()
-    api.trackInteraction(type).then(refreshStats).catch((err) => notifyError('记录交互', err))
+    api
+      .trackInteraction(type)
+      .then(refreshStats)
+      .catch((err) => notifyError('记录交互', err))
   }
 
   const handleZoomIn = () => zoomBy(0.8, 'zoom_in')
@@ -117,7 +124,10 @@ export default function App() {
       c.target.set(...DEFAULT_CAMERA.target)
       c.update()
     }
-    api.trackInteraction('reset').then(refreshStats).catch((err) => notifyError('记录交互', err))
+    api
+      .trackInteraction('reset')
+      .then(refreshStats)
+      .catch((err) => notifyError('记录交互', err))
   }
 
   // ---- 动作（Actions） ----
@@ -133,40 +143,118 @@ export default function App() {
   }
 
   return (
-    <div className="layout">
-      {toast && <div className="toast toast-err">{toast}</div>}
-      <header className="header">
-        <h1>THE ROCK <span className="accent">3D DEMO</span></h1>
-        <div className="header-sub">
-          {modelInfo
-            ? `${modelInfo.name} · model: ${modelInfo.model} · status: ${modelInfo.status}`
-            : 'loading model info…'}
+    <div className="app-shell">
+      <a className="skip-link" href="#experience">
+        Skip to experience
+      </a>
+      {toast && (
+        <div className="toast toast-err" role="alert">
+          {toast}
         </div>
+      )}
+      <header className="header">
+        <a
+          className="brand"
+          href="#experience"
+          aria-label="The Rock Studio, experience"
+        >
+          <span className="brand-mark">
+            <Icon name="cube" />
+          </span>
+          <span>
+            THE ROCK<span className="brand-sub">INTERACTIVE STUDIO</span>
+          </span>
+        </a>
+        <nav className="header-nav" aria-label="Main navigation">
+          <a href="#experience">Experience</a>
+          <a href="#store">
+            Merch store <Icon name="arrow" />
+          </a>
+        </nav>
       </header>
 
-      <Controls
-        onRotate={handleRotate}
-        onZoomIn={handleZoomIn}
-        onZoomOut={handleZoomOut}
-        onReset={handleReset}
-        onAction={handleAction}
-        activeAction={action}
-      />
-
-      <main className="viewport">
-        <Scene
-          action={action}
-          actionKey={actionKey}
-          spinKey={spinKey}
-          controlsRef={controlsRef}
-        />
-        <div className="viewport-hint">drag to rotate · scroll to zoom</div>
-      </main>
-
-      <div className="right-col">
-        <Stats online={online} latency={latency} stats={stats} />
-        <OrderPanel />
+      <div className="intro">
+        <div>
+          <p className="eyebrow">A LITTLE WORLD TO EXPLORE</p>
+          <h1>
+            Small world. <span>Big personality.</span>
+          </h1>
+          <p className="intro-copy">
+            Meet The Rock. Explore the garden, try a move, and make it yours.
+          </p>
+        </div>
+        <span className="edition">
+          THE INTERACTIVE COLLECTION <span>VOL. 01 / THE GARDEN</span>
+        </span>
       </div>
+
+      <div className="layout">
+        <Controls
+          onRotate={handleRotate}
+          onZoomIn={handleZoomIn}
+          onZoomOut={handleZoomOut}
+          onReset={handleReset}
+          onAction={handleAction}
+          activeAction={action}
+        />
+
+        <main
+          className="scene-card"
+          id="experience"
+          tabIndex={-1}
+          aria-labelledby="scene-title"
+        >
+          <div className="scene-header">
+            <div>
+              <p className="eyebrow">THE PLAYGROUND</p>
+              <h2 id="scene-title">A moment in the garden</h2>
+            </div>
+            <span className="scene-badge">3D EXPLORER</span>
+          </div>
+          <div
+            className="viewport"
+            aria-label="Interactive 3D character in a garden"
+          >
+            <div className="scene-canvas">
+              <Scene
+                action={action}
+                actionKey={actionKey}
+                spinKey={spinKey}
+                controlsRef={controlsRef}
+              />
+            </div>
+            <div className="viewport-hint">
+              <span>Drag to rotate</span>
+              <span>Scroll or pinch to zoom</span>
+            </div>
+          </div>
+          <div className="scene-caption">
+            <span className="scene-number">01</span>
+            <div>
+              <strong>The Rock</strong>
+              <p className="model-info">
+                {modelInfo
+                  ? `${modelInfo.name} · ${modelInfo.model} · ${modelInfo.status}`
+                  : 'Model information loading…'}
+              </p>
+            </div>
+            <span className="scene-angle">
+              360°<span>YOUR PERSPECTIVE</span>
+            </span>
+          </div>
+        </main>
+
+        <div className="right-col">
+          <OrderPanel />
+          <Stats online={online} latency={latency} stats={stats} />
+        </div>
+      </div>
+      <footer className="footer">
+        <span>A little curiosity goes a long way.</span>
+        <span>
+          THE ROCK STUDIO <span aria-hidden="true">↗</span>
+        </span>
+      </footer>
     </div>
   )
 }
