@@ -35,15 +35,18 @@ def color(hex_color, shade=1):
     rgb = [int(hex_color[i:i+2], 16)/255 for i in (1, 3, 5)]
     return tuple((v/12.92 if v <= .04045 else ((v+.055)/1.055)**2.4)*shade for v in rgb)
 
-SKIN = '#bd8864'
-GREEN = '#45664f'
-PANTS = '#303e3c'
-CREAM = '#e8dfc8'
-DARK = '#302e28'
+SKIN = '#f2dfc8'
+COAT = '#b49a70'
+PANTS = '#d9d5c5'
+CREAM = '#e6ebe4'
+DARK = '#282927'
+HAIR = '#302b2a'
 
 class Mesh:
     def __init__(self):
         self.positions, self.faces, self.colors = [], [], []
+        self.sculpt_count = 0
+        self.rigid_vertices = set()
     def vertex(self, point, tint):
         self.positions.append(tuple(point)); self.colors.append(tuple(tint))
         return len(self.positions)-1
@@ -65,10 +68,10 @@ class Mesh:
         return [norm(n) if dot(n,n)>1e-20 else (0,1,0) for n in values]
 
 # Horizontal sculpting profiles: height, half-width, half-depth, front offset.
-HEAD = ((.94,.11,.11,0),(1.06,.105,.105,0), (1.19,.14,.14,.025), (1.25,.205,.185,.03),
-        (1.34,.254,.205,.02), (1.44,.276,.218,.01), (1.56,.269,.216,0),
-        (1.67,.255,.208,-.01), (1.76,.211,.182,-.02), (1.82,.14,.135,-.02),
-        (1.85,.035,.035,-.02))
+HEAD = ((.94,.105,.105,0),(1.10,.10,.10,0),(1.19,.11,.12,.025),
+        (1.26,.18,.16,.025),(1.37,.237,.196,.018),(1.49,.263,.211,0),
+        (1.62,.264,.21,-.01),(1.73,.237,.195,-.018),
+        (1.82,.16,.145,-.02),(1.86,.025,.025,-.02))
 TORSO = ((-.045,.24,.16,0), (.04,.274,.173,0), (.18,.275,.18,0),
          (.38,.296,.195,0), (.64,.335,.205,0), (.83,.365,.185,-.005),(.90,.365,.171,-.005),
          (.96,.25,.145,-.005), (1.015,.125,.118,0))
@@ -111,10 +114,8 @@ def sculpt(x,y,z):
         head = surface(HEAD,x,y,z)
         # The nose, cheeks, brow and ears blend into the same watertight surface.
         if 1.27 < y < 1.67:
-            head = smin(head, ellipsoid(x,y,z,0,1.47,.219,.059,.111,.085), .035)
-            head = smin(head, ellipsoid(x,y,z,0,1.405,.249,.075,.056,.079), .038)
-            head = smin(head, ellipsoid(abs(x),y,z,.133,1.56,.169,.12,.042,.063), .035)
-            head = smin(head, ellipsoid(abs(x),y,z,.278,1.455,-.014,.054,.10,.049), .03)
+            head = smin(head, ellipsoid(x,y,z,0,1.435,.207,.028,.065,.037), .025)
+            head = smin(head, ellipsoid(abs(x),y,z,.259,1.43,-.014,.032,.075,.035), .022)
         fields.append(head)
     if -.095 < y < 1.07:
         fields.append(surface(TORSO,x,y,z))
@@ -136,35 +137,25 @@ def sculpt(x,y,z):
 
 def skin_color(p):
     x,y,z = p
-    shade = .92 + .08*smooth(-.1,.22,z)
-    if y > .985 or (abs(x) > .39 and y < .24):
-        tint=color(SKIN,shade)
-        if y > 1.25:
-            blush=math.exp(-((abs(x)-.19)/.08)**2-((y-1.39)/.085)**2)*.12
-            tint=tuple(mix(a,b,blush) for a,b in zip(tint,color('#af6851')))
-        if abs(x)>.39 and y<.24:
-            skin_amount=1-smooth(.175,.215,y)
-            tint=tuple(mix(a,b,skin_amount) for a,b in zip(color('#b9c1a8',shade),tint))
-        if y>.985:
-            skin_amount=smooth(.985,1.015,y)
-            tint=tuple(mix(a,b,skin_amount) for a,b in zip(color(GREEN,shade),tint))
-        return tint
-    if y < -1.19:return color('#d8d0bb',shade)
-    if y < -.99:
-        trouser=smooth(-1.045,-1.005,y)
-        return tuple(mix(a,b,trouser) for a,b in zip(color('#e9e1ce',shade),color(PANTS,shade)))
-    if y < .06:
-        jacket=smooth(.015,.055,y)
-        return tuple(mix(a,b,jacket) for a,b in zip(color(PANTS,shade),color(GREEN,shade)))
-    tint=color(GREEN,shade)
-    if z>0 and y>.74:
-        width=.10*clamp((y-.75)/.24)
-        opening=(1-smooth(width-.012,width+.012,abs(x)))*smooth(.74,.77,y)
-        tint=tuple(mix(a,b,opening) for a,b in zip(tint,color(CREAM,shade)))
-    return tint
+    shade = .94 + .06*smooth(-.15,.22,z)
+    if y > 1.16:
+        blush=math.exp(-((abs(x)-.18)/.065)**2-((y-1.405)/.05)**2)*.12
+        return tuple(mix(a,b,blush) for a,b in zip(color(SKIN,shade),color('#dea398')))
+    if y > 1.035: return color(CREAM if abs(x)<.13 else COAT,shade)
+    if y > .92: return color(COAT,shade)
+    if y > .80 and abs(x)>.22: return color(COAT,shade)
+    if abs(x) > .39 and y > -.34:
+        if y < -.17: return color(SKIN,shade)
+        if y < .20:
+            return color(CREAM,shade)
+        return color(COAT,shade)
+    if y < -1.19: return color('#353733',shade)
+    if y < -1.01: return color('#514d42',shade)
+    if y < .02: return color(PANTS,shade)
+    return color('#272e29',shade)
 
 # Marching tetrahedra weld all cut edges: no intersecting primitive body parts.
-def implicit_mesh(step=.041):
+def implicit_mesh(step=.045):
     mesh = Mesh()
     bounds = ((-.79,.79),(-1.29,1.89),(-.31,.39))
     axes = [[lo+(hi-lo)*i/math.ceil((hi-lo)/step) for i in range(math.ceil((hi-lo)/step)+1)] for lo,hi in bounds]
@@ -208,6 +199,7 @@ def implicit_mesh(step=.041):
         points=mesh.positions
         mesh.positions=[add(p,mul(sub(tuple(sum(points[j][k] for j in adjacent)/len(adjacent) for k in range(3)),p),rate)) if adjacent else p for p,adjacent in zip(points,neighbors)]
     mesh.colors=[skin_color(p) for p in mesh.positions]
+    mesh.sculpt_count=len(mesh.positions)
     return mesh
 
 def front_z(x,y):
@@ -230,45 +222,220 @@ def ribbon(mesh, points, width, tint, depth=0):
             vertices.append((px,py,front_z(px,py)+depth)); tints.append(color(tint))
     mesh.grid(vertices,len(points),2,tints)
 
-def face_patch(mesh,cx,cy,rx,ry,tint,almond=False,layer=0):
+def face_patch(mesh,cx,cy,rx,ry,tint,layer=0,z=None,bend=0):
     # Concentric curved rings prevent flat decals from intersecting the face.
-    center = mesh.vertex((cx,cy,front_z(cx,cy)+layer*.004),color(tint))
+    center = mesh.vertex((cx,cy,(front_z(cx,cy) if z is None else z)+layer*.004),color(tint))
     rings=[]
-    for r in range(1,6):
+    for r in range(1,4):
         ring=[]
-        for i in range(33):
-            t=i/32*2*PI;scale=r/5
+        for i in range(25):
+            t=i/24*2*PI;scale=r/3
             x=cx+rx*math.cos(t)*scale
-            y=cy+ry*math.sin(t)*scale*(abs(math.sin(t))**.28 if almond else 1)
-            ring.append(mesh.vertex((x,y,front_z(x,y)+layer*.004),color(tint)))
+            y=cy+ry*math.sin(t)*scale+bend*((x-cx)/rx)**2
+            depth=(front_z(x,y) if z is None else z)+layer*.004
+            ring.append(mesh.vertex((x,y,depth),color(tint)))
         rings.append(ring)
-    for i in range(32):mesh.face(center,rings[0][i],rings[0][i+1])
+    for i in range(24):mesh.face(center,rings[0][i],rings[0][i+1])
     for before,after in zip(rings,rings[1:]):
-        for i in range(32):
+        for i in range(24):
             mesh.face(before[i],after[i],after[i+1]);mesh.face(before[i],after[i+1],before[i+1])
 
-def character_details(mesh):
+def seam(mesh,points,width,tint):
+    """A small raised seam following an explicitly authored clothing surface."""
+    vertices=[]
+    for i,p in enumerate(points):
+        tangent=sub(points[min(i+1,len(points)-1)],points[max(i-1,0)])
+        across=mul(norm((-tangent[1],tangent[0],0)),width/2)
+        vertices.extend([add(p,across),sub(p,across)])
+    mesh.grid(vertices,len(points),2,[color(tint)]*len(vertices))
+
+
+def tailored_patch(mesh,outline,tint,z_surface):
+    """Curved lapel/collar panels, subdivided once into the shared mesh."""
+    cx=sum(p[0] for p in outline)/len(outline)
+    cy=sum(p[1] for p in outline)/len(outline)
+    center=mesh.vertex((cx,cy,z_surface(cx,cy)),color(tint))
+    rings=[]
+    boundary=[]
+    for a,b in zip(outline,outline[1:]+outline[:1]):
+        boundary.extend([(mix(a[0],b[0],i/4),mix(a[1],b[1],i/4)) for i in range(4)])
+    for r in range(1,4):
+        ring=[]
+        for x,y in boundary:
+            px,py=mix(cx,x,r/3),mix(cy,y,r/3)
+            ring.append(mesh.vertex((px,py,z_surface(px,py)),color(tint)))
+        rings.append(ring)
+    count=len(boundary)
+    for i in range(count):mesh.face(center,rings[0][i],rings[0][(i+1)%count])
+    for inner,outer in zip(rings,rings[1:]):
+        for i in range(count):
+            j=(i+1)%count
+            mesh.face(inner[i],outer[i],outer[j]);mesh.face(inner[i],outer[j],inner[j])
+
+
+def trench_coat(mesh):
+    start=len(mesh.positions)
+    rows=((- .84,.45,.275,.45),(-.50,.415,.26,.43),(-.10,.365,.24,.40),
+          (.40,.365,.24,.48),(.77,.41,.247,.60),(.94,.355,.21,.85))
+    points,tints=[],[]
+    for i in range(27):
+        y=mix(rows[0][0],rows[-1][0],i/26)
+        rx,rz,opening=profile(rows,y)
+        for j in range(57):
+            angle=mix(opening,2*PI-opening,j/56)
+            # Subtle cloth folds, baked offline rather than simulated.
+            fold=.006*math.cos(angle*9+y*5)*smooth(.7,-.7,y)
+            points.append(((rx+fold)*math.sin(angle),y,(rz+fold)*math.cos(angle)))
+            tints.append(color(COAT,.88+.12*(.5+.5*math.cos(angle))))
+    mesh.grid(points,27,57,tints)
+    lapel_z=lambda x,y:.263-.18*x*x+.012*(1-y)
     for side in (-1,1):
-        # Almond eyes and curved brows sit on the sculpt rather than bead eyes.
-        face_patch(mesh,side*.124,1.511,.078,.030,'#eee5d2',True,layer=1)
-        face_patch(mesh,side*.121,1.511,.026,.027,'#655a40',layer=2)
-        face_patch(mesh,side*.121,1.511,.015,.021,'#242c29',layer=3)
-        face_patch(mesh,side*.111,1.523,.005,.006,'#fff8e6',layer=4)
-        ribbon(mesh,[(side*(.052+i*.010),1.56+.018*math.sin(i/14*PI)+( .009 if side<0 else 0)) for i in range(15)],.015,DARK)
-        ribbon(mesh,[(side*(.051+i*.011),1.512+.030*math.sin(i/13*PI)) for i in range(14)],.006,'#79573f',depth=.013)
-        face_patch(mesh,side*.027,1.395,.014,.007,'#7b4b37')
-        # Cloth panel seams, pocket welts and sneaker laces are baked mesh detail.
-        ribbon(mesh,[(side*(.22-.06*t),.80-.64*t) for t in [i/20 for i in range(21)]],.007,'#60765b')
-        ribbon(mesh,[(side*(.11+.09*t),.32+.034*t) for t in [i/12 for i in range(13)]],.011,'#a5af91')
-        for y in (-1.105,-1.13,-1.155):
-            ribbon(mesh,[(side*.17-.055+i*.011,y) for i in range(11)],.008,'#b3ac98')
-    # Quiet smile and cleanly tailored jacket opening.
-    ribbon(mesh,[(-.105+i*.010,1.337-.012*math.sin(i/21*PI)) for i in range(22)],.010,'#8b5741')
-    ribbon(mesh,[(0,.105+i*.027) for i in range(23)],.009,'#baac83')
-    ribbon(mesh,[(-.10+i*.01,.75+.23*abs((i-10)/10)) for i in range(21)],.010,'#a8b396')
-    # A small botanical chest emblem, authored as connected strokes.
-    ribbon(mesh,[(-.163+.018*math.sin(i/12*PI),.67+i*.004) for i in range(13)],.005,CREAM)
-    ribbon(mesh,[(-.163-i*.002,.69+i*.003) for i in range(8)],.005,CREAM)
+        outline=[(side*x,y) for x,y in [(.11,.985),(.255,.94),(.37,.755),
+                 (.295,.69),(.33,.625),(.158,.37),(.19,.71)]]
+        tailored_patch(mesh,outline,'#c7ae7f',lapel_z)
+        for edge in ((2,3,4,5),(0,6,5)):
+            seam(mesh,[(outline[i][0],outline[i][1],lapel_z(*outline[i])+.003) for i in edge],.006,'#6f6048')
+        # Welt pockets and long front-edge stitching on the coat itself.
+        pocket=[]
+        for t in [i/12 for i in range(13)]:
+            x,y=side*(.235+.07*t),.08+.06*t
+            rx,rz,_=profile(rows,y)
+            pocket.append((x,y,rz*math.sqrt(1-(x/rx)**2)+.006))
+        seam(mesh,pocket,.009,'#77664b')
+        edge=[]
+        for i in range(21):
+            y=mix(-.82,.37,i/20);rx,rz,opening=profile(rows,y)
+            edge.append((side*(rx*math.sin(opening)+.006),y,rz*math.cos(opening)+.003))
+        seam(mesh,edge,.005,'#7a694e')
+    for y in (.24,-.15,-.56):
+        rx,rz,opening=profile(rows,y)
+        face_patch(mesh,-rx*math.sin(opening)-.035,y,.012,.019,DARK,z=rz*math.cos(opening)+.008)
+    # Coat tails and lapels remain on Root when the arms move.
+    mesh.rigid_vertices.update(range(start,len(mesh.positions)))
+
+
+def hair_lock(mesh,control,width,tint):
+    points,tints=[],[]
+    def curve(t):
+        return tuple((1-t)**3*control[0][k]+3*t*(1-t)**2*control[1][k]
+                     +3*t*t*(1-t)*control[2][k]+t**3*control[3][k] for k in range(3))
+    for i in range(12):
+        t=i/11;p=curve(t)
+        tangent=norm(sub(curve(min(1,t+.01)),curve(max(0,t-.01))))
+        across=norm(cross(tangent,(0,0,1)));depth=norm(cross(across,tangent))
+        w=width*(.55+.65*math.sin(PI*t))*(1-t)**.55+.0008
+        for j in range(9):
+            a=j/8*2*PI
+            points.append(add(p,add(mul(across,math.cos(a)*w),mul(depth,math.sin(a)*w*.44))))
+            tints.append(color(tint,.78+.22*(.5+.5*math.sin(a))))
+    mesh.grid(points,12,9,tints)
+
+
+def tousled_hair(mesh):
+    # A continuous cap hides the scalp beneath layered, tapered, curved locks.
+    points,tints=[],[]
+    for i in range(19):
+        for j in range(57):
+            a=j/56*2*PI
+            limit=1.30+.95*(1-math.cos(a))/2+.30*abs(math.sin(a))
+            phi=.012+(limit-.012)*i/18
+            ripple=1+.018*math.sin(a*9+phi*3)
+            points.append((.305*math.sin(phi)*math.sin(a)*ripple,
+                           1.59+.365*math.cos(phi),
+                           -.025+.252*math.sin(phi)*math.cos(a)*ripple))
+            tints.append(color(HAIR,.87+.13*math.sin(phi)))
+    mesh.grid(points,19,57,tints)
+    palette=['#302b2a','#3b3330','#433a34','#352f2d']
+    # Shaggy sides and back: each point ends in a distinct swept silhouette.
+    for i in range(18):
+        a=.90+i/17*(2*PI-1.8);sx,sz=math.sin(a),math.cos(a)
+        tip_y=1.22+.19*(.5+.5*math.sin(i*2.3))
+        hair_lock(mesh,[(.18*sx,1.85,.14*sz-.025),(.32*sx,1.73,.255*sz-.025),
+                        (.32*sx,1.42,.265*sz-.025),(.36*sx+.035*math.sin(i),tip_y,.26*sz-.025)],
+                  .062,palette[i%4])
+    # Asymmetric face-framing bangs; central tips dip between the smiling eyes.
+    bangs=[(-.24,-.275,1.46),(-.17,-.205,1.59),(-.10,-.14,1.62),
+           (-.025,-.015,1.455),(.055,.10,1.49),(.14,.185,1.605),(.22,.275,1.425)]
+    for i,(root,tip,y) in enumerate(bangs):
+        crown=1.99-.18*abs(root)/.24
+        hair_lock(mesh,[(root*.65,crown,.10), (root,1.84,.235),
+                        (tip-.025,1.68,.275), (tip,y,.235 if abs(tip)>.23 else .278)],
+                  .068 if i in (2,3,4) else .054,palette[i%4])
+
+
+def wrapped_sleeves(mesh):
+    for side in (-1,1):
+        for cy in (-.13,-.06,.01,.08,.15):
+            points=[]
+            for i in range(25):
+                angle=i/24*2*PI;y=cy+.012*math.cos(angle)
+                rx,rz,cz=profile(ARM,y);arm_x=.43+(.90-y)*.19
+                for offset in (-.002,.002):
+                    points.append((side*(arm_x+(rx+.007)*math.cos(angle)),y+offset,cz+(rz+.007)*math.sin(angle)))
+            mesh.grid(points,25,2,[color('#a4afa8')]*len(points))
+        # Rolled cuffs hide the material boundary and add a real folded edge.
+        points=[];tints=[]
+        for y,extra in ((.167,.003),(.174,.012),(.198,.013),(.225,.004)):
+            rx,rz,cz=profile(ARM,y);arm_x=.43+(.90-y)*.19
+            for i in range(25):
+                a=i/24*2*PI
+                points.append((side*(arm_x+(rx+extra)*math.cos(a)),y,cz+(rz+extra)*math.sin(a)))
+                tints.append(color('#c1aa7e'))
+        mesh.grid(points,4,25,tints)
+
+
+def standing_collar(mesh):
+    points=[]
+    for y,rx,rz in ((.925,.18,.165),(.97,.165,.162),(1.035,.14,.145),(1.075,.128,.13)):
+        for i in range(33):
+            a=mix(.65,2*PI-.65,i/32)
+            points.append((rx*math.sin(a),y,rz*math.cos(a)+.01))
+    mesh.grid(points,4,33,[color(CREAM)]*len(points))
+    # Join the raised neck to the shirt front, closing the gap below the collar.
+    points=[]
+    for i in range(6):
+        t=i/5
+        for j in range(13):
+            x=mix(-.12,.12,j/12)*mix(.83,1,t)
+            points.append((x,mix(1.047,.98,t),mix(.129,.239,t)-.25*x*x))
+    mesh.grid(points,6,13,[color(CREAM)]*len(points))
+
+
+def character_details(mesh):
+    # A clean white shirt triangle avoids coarse vertex-color borders at the V.
+    tailored_patch(mesh,[(-.115,.993),(.115,.993),(.126,.85),(0,.55),(-.126,.85)],
+                   CREAM,lambda x,y:.239-.08*x*x)
+    tailored_patch(mesh,[(-.21,.20),(.21,.20),(.20,-.075),(.07,-.13),
+                        (0,-.02),(-.07,-.13),(-.20,-.075)],
+                   '#272e29',lambda x,y:.195-.15*x*x)
+    for side in (-1,1):
+        # Closed crescent eyes, rather than the previous open realistic eyes.
+        ribbon(mesh,[(side*(.063+.117*t),1.50+.024*math.sin(PI*t))
+                     for t in [i/20 for i in range(21)]],.014,HAIR,depth=.004)
+        ribbon(mesh,[(side*(.075+.095*t),1.568+.012*math.sin(PI*t))
+                     for t in [i/16 for i in range(17)]],.008,'#584b3c')
+        # Shirt collar points and dark ribbon surrounding the blue-green brooch.
+        tailored_patch(mesh,[(side*.10,1.005),(side*.23,.91),(side*.20,.74),(side*.10,.85)],
+                       '#edf0e8',lambda x,y:.25-.1*x*x)
+        seam(mesh,[(side*.025,.65,.261),(side*.105,.72,.261),(side*.18,.80,.261)],.025,DARK)
+    ribbon(mesh,[(0,1.443),(.009,1.421),(.018,1.415)],.005,'#ab8c70')
+    face_patch(mesh,0,1.335,.105,.034,'#65413c',layer=1,bend=.016)
+    face_patch(mesh,0,1.330,.090,.024,'#c57c84',layer=2,bend=.014)
+    ribbon(mesh,[(-.076+.152*t,1.355+.005*abs(2*t-1)) for t in [i/20 for i in range(21)]],.012,'#fff3e2',depth=.016)
+    # Neck wrap lines follow the sculpt around the neck, not flat image decals.
+    for cy in (1.035,1.09,1.145):
+        ribbon(mesh,[(-.085+.17*t,cy+.009*t) for t in [i/20 for i in range(21)]],.006,'#a9b5b0',depth=.003)
+    for rx,ry,tint,layer in [(.052,.073,DARK,0),(.045,.065,'#c1aa54',1),
+                            (.033,.052,'#186b73',2),(.022,.041,'#25949a',3)]:
+        face_patch(mesh,0,.652,rx,ry,tint,z=.243,layer=layer)
+    face_patch(mesh,-.011,.674,.008,.022,'#b2ded1',z=.260)
+    # The white tie tip below the brooch rests over the dark waistcoat.
+    tailored_patch(mesh,[(-.025,.574),(.025,.574),(.04,.49),(0,.45),(-.04,.49)],
+                   CREAM,lambda x,y:front_z(x,y)+.012)
+    trench_coat(mesh)
+    tousled_hair(mesh)
+    wrapped_sleeves(mesh)
+    standing_collar(mesh)
 
 
 def joint_weights(p):
@@ -303,10 +470,16 @@ class GLB:
         self.doc['materials'].append({'name':name,'pbrMetallicRoughness':{'baseColorFactor':[1,1,1,1],'metallicFactor':0,'roughnessFactor':roughness},'doubleSided':double})
         return len(self.doc['materials'])-1
     def mesh(self,name,mesh,material,skin=False):
-        attrs={'POSITION':self.accessor(mesh.positions,bounds=True),'NORMAL':self.accessor([norm((sculpt(x+.002,y,z)-sculpt(x-.002,y,z),sculpt(x,y+.002,z)-sculpt(x,y-.002,z),sculpt(x,y,z+.002)-sculpt(x,y,z-.002))) for x,y,z in mesh.positions] if skin else mesh.normals()),'COLOR_0':self.accessor([tuple(round(clamp(c)*255) for c in tint) for tint in mesh.colors],component=5121)}
+        normals=mesh.normals()
+        # Hair, lapels and jewelry use their own curved-surface normals. Only
+        # the implicit body uses field gradients to smooth the sampled surface.
+        for i,(x,y,z) in enumerate(mesh.positions[:mesh.sculpt_count]):
+            normals[i]=norm((sculpt(x+.002,y,z)-sculpt(x-.002,y,z),sculpt(x,y+.002,z)-sculpt(x,y-.002,z),sculpt(x,y,z+.002)-sculpt(x,y,z-.002)))
+        attrs={'POSITION':self.accessor(mesh.positions,bounds=True),'NORMAL':self.accessor(normals),'COLOR_0':self.accessor([tuple(round(clamp(c)*255) for c in tint) for tint in mesh.colors],component=5121)}
         self.doc['accessors'][attrs['COLOR_0']]['normalized']=True
         if skin:
-            joints,weights=zip(*(joint_weights(p) for p in mesh.positions))
+            joints,weights=zip(*(((0,0,0,0),(1,0,0,0)) if i in mesh.rigid_vertices else joint_weights(p)
+                                 for i,p in enumerate(mesh.positions)))
             attrs['JOINTS_0']=self.accessor(joints,'VEC4',5121);attrs['WEIGHTS_0']=self.accessor(weights,'VEC4')
         faces=[i for face in mesh.faces for i in face]
         self.doc['meshes'].append({'name':name,'primitives':[{'attributes':attrs,'indices':self.accessor(faces,'SCALAR',5123 if len(mesh.positions)<65536 else 5125),'material':material}]})
@@ -323,7 +496,7 @@ class GLB:
 
 def character():
     model=implicit_mesh();character_details(model)
-    glb=GLB();mat=glb.material('Clay, woven cotton and leather',.82,True)
+    glb=GLB();mat=glb.material('Painted anime hair, cotton and gabardine',1,True)
     root=glb.node(name='CharacterRoot',children=[])
     bones=[glb.node(name='Root',children=[])]
     world=[(0,0,0)]
@@ -335,7 +508,7 @@ def character():
     inverse=[]
     for x,y,z in world: inverse.append((1,0,0,0,0,1,0,0,0,0,1,0,-x,-y,-z,1))
     glb.doc['skins']=[{'name':'Character arm rig','joints':bones,'skeleton':bones[0],'inverseBindMatrices':glb.accessor(inverse,'MAT4')}]
-    node=glb.node(name='SculptedCharacter',mesh=glb.mesh('Continuous sculpt and tailored details',model,mat,True),skin=0)
+    node=glb.node(name='SculptedCharacter',mesh=glb.mesh('Anime portrait, trench coat and sculpted hair',model,mat,True),skin=0)
     glb.doc['nodes'][root]['children']=[bones[0],node];glb.doc['scenes'][0]['nodes']=[root]
     glb.save('rock-character.glb')
 
