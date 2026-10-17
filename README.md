@@ -99,3 +99,4 @@ frontend/       React + Vite + Three.js；nginx 反代 /api 到 backend
 - 日志：`datadog.LogEntry` 上报官方 JSON 格式；无 DD_API_KEY 时降级为本地日志
 - 自定义 metrics：`backend.requests` / `backend.request_latency` / `order.orders`（按 `outcome:confirmed|out_of_stock|not_found` 打 tag）
 - docker-compose 内置 `datadog/agent`：APM (`DD_APM_NON_LOCAL_TRAFFIC`) + dogstatsd + 容器日志采集
+

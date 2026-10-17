@@ -11,18 +11,19 @@ import (
 
 // Item 商品。库存全在内存中（demo 用），mutex 保护。
 type Item struct {
-	ID    string `json:"id"`
-	Name  string `json:"name"`
+	ID    string  `json:"id"`
+	Name  string  `json:"name"`
 	Price float64 `json:"price"`
-	Stock int    `json:"stock"`
+	Stock int     `json:"stock"`
+	Usage string  `json:"usage"` // 商品用途说明，供购物助手（agent）只读检索
 }
 
 var (
 	mu    sync.Mutex
 	items = map[string]*Item{
-		"rock-figure":  {ID: "rock-figure", Name: "巨石强森手办（经典）", Price: 199, Stock: 50},
-		"flex-figure":  {ID: "flex-figure", Name: "Flex 姿势限定版", Price: 249, Stock: 50},
-		"limited-tshirt": {ID: "limited-tshirt", Name: "限量联名 T 恤", Price: 99, Stock: 1}, // 库存 1，方便演示"库存不足"失败路径
+		"rock-figure":    {ID: "rock-figure", Name: "巨石强森手办（经典）", Price: 199, Stock: 50, Usage: "收藏级人物手办，适合摆件、送礼与粉丝收藏"},
+		"flex-figure":    {ID: "flex-figure", Name: "Flex 姿势限定版", Price: 249, Stock: 50, Usage: "经典 Flex 姿势限定手办，限量发售，适合资深粉丝收藏"},
+		"limited-tshirt": {ID: "limited-tshirt", Name: "限量联名 T 恤", Price: 99, Stock: 1, Usage: "限量联名短袖 T 恤，日常穿搭与纪念收藏皆可"}, // 库存 1，方便演示"库存不足"失败路径
 	}
 	orderSeq int
 )

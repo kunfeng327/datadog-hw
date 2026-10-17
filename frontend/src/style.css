@@ -966,3 +966,101 @@ h1 span {
     animation: none !important;
   }
 }
+
+/* ---------------- 购物助手 ChatWidget ---------------- */
+.chat-widget {
+  position: fixed;
+  right: 20px;
+  bottom: 20px;
+  z-index: 1100;
+}
+.chat-fab {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  border: none;
+  cursor: pointer;
+  font-size: 20px;
+  background: #3d8bfd;
+  color: #fff;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+}
+.chat-fab:hover { background: #2f7ae5; }
+.chat-window {
+  position: absolute;
+  right: 0;
+  bottom: 60px;
+  width: 320px;
+  max-height: 440px;
+  display: flex;
+  flex-direction: column;
+  background: var(--panel-bg, #1c2030);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 10px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.45);
+  overflow: hidden;
+  color: #fff;
+}
+.chat-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 12px;
+  font-size: 14px;
+  font-weight: 600;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+.chat-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.chat-msg {
+  max-width: 85%;
+  padding: 8px 10px;
+  border-radius: 10px;
+  font-size: 13px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.chat-msg.user {
+  align-self: flex-end;
+  background: #3d8bfd;
+  color: #fff;
+}
+.chat-msg.assistant {
+  align-self: flex-start;
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+}
+.chat-msg a { color: #7ab8ff; }
+.chat-input {
+  display: flex;
+  gap: 6px;
+  padding: 8px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+.chat-input input {
+  flex: 1;
+  padding: 8px 10px;
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  background: rgba(255, 255, 255, 0.06);
+  color: #fff;
+  font-size: 13px;
+}
+.chat-input input::placeholder { color: rgba(255, 255, 255, 0.45); }
+.chat-input button {
+  padding: 8px 12px;
+  border: none;
+  border-radius: 6px;
+  background: #3d8bfd;
+  color: #fff;
+  cursor: pointer;
+  font-size: 13px;
+}
+.chat-input button:disabled { opacity: 0.5; cursor: default; }

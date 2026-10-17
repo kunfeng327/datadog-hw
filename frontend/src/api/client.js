@@ -79,6 +79,10 @@ export const api = {
   order: (itemId, quantity = 1) =>
     request('/api/order', { method: 'POST', body: JSON.stringify({ itemId, quantity }) }),
 
+  // POST /api/chat — 结账页购物助手（backend agent：商品查询 + 智谱 GLM）
+  chat: (sessionId, message) =>
+    request('/api/chat', { method: 'POST', body: JSON.stringify({ sessionId, message }) }),
+
   // GET /health — 后端健康检查
   health: () => request('/health'),
 }

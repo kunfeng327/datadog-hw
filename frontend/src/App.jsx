@@ -3,6 +3,7 @@ import Scene from './components/Scene.jsx'
 import Controls from './components/Controls.jsx'
 import Stats from './components/Stats.jsx'
 import OrderPanel from './components/OrderPanel.jsx'
+import ChatWidget from './components/ChatWidget.jsx'
 import Icon from './components/Icon.jsx'
 import { api } from './api/client.js'
 
@@ -255,6 +256,8 @@ export default function App() {
           THE ROCK STUDIO <span aria-hidden="true">↗</span>
         </span>
       </footer>
+
+      <ChatWidget />
     </div>
   )
 }
