@@ -1,27 +1,25 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
-import Scene from './components/Scene.jsx'
-import Controls from './components/Controls.jsx'
+import { lazy, Suspense, useCallback, useEffect, useState } from 'react'
 import Stats from './components/Stats.jsx'
 import OrderPanel from './components/OrderPanel.jsx'
 import ChatWidget from './components/ChatWidget.jsx'
 import Icon from './components/Icon.jsx'
 import { api } from './api/client.js'
 
-const DEFAULT_CAMERA = { pos: [0, 1.2, 5.5], target: [0, 0.3, 0] }
+// Native page links keep URLs, refresh, browser history, and RUM views in sync.
+// Only the experience page imports Three.js and the scene assets.
+const ExperiencePage = lazy(() => import('./pages/ExperiencePage.jsx'))
 
 export default function App() {
-  const controlsRef = useRef(null)
-
-  // 3D 状态
-  const [action, setActiveAction] = useState(null)
-  const [actionKey, setActionKey] = useState(0)
-  const [spinKey, setSpinKey] = useState(0)
+  const isStore = window.location.pathname.replace(/\/+$/, '') === '/store'
 
   // API 状态
   const [online, setOnline] = useState(false)
   const [latency, setLatency] = useState(null)
   const [stats, setStats] = useState({})
-  const [modelInfo, setModelInfo] = useState(null)
+
+  useEffect(() => {
+    document.title = `${isStore ? '商品商店' : '3D 操作'} · The Rock Studio`
+  }, [isStore])
 
   const refreshStats = useCallback(async () => {
     try {
@@ -32,15 +30,10 @@ export default function App() {
     }
   }, [])
 
-  // 启动时拉取模型信息；轮询健康 + 统计。
+  // 两页共享原有健康与统计轮询；模型信息仅在 3D 页加载。
   // 治理策略：页面隐藏时暂停；失败后退避（3s 起、翻倍至 30s 封顶）；
   // 上一次请求未返回时跳过本轮，避免请求堆积。
   useEffect(() => {
-    api
-      .getModel()
-      .then(({ data }) => setModelInfo(data))
-      .catch(() => setModelInfo(null))
-
     let timer = null
     let inFlight = false
     let interval = 3000
@@ -82,82 +75,16 @@ export default function App() {
     }
   }, [refreshStats])
 
-  // ---- 失败请求提示（toast） ----
-  // 任何 API 请求失败都在页面上短暂显示，不再静默吞掉。
-  const [toast, setToast] = useState(null)
-  const toastTimer = useRef(null)
-  const notifyError = (what, err) => {
-    const msg = `${what}失败：${err?.isNetworkError ? '网络错误（后端不可达）' : err?.message || '未知错误'}`
-    setToast(msg)
-    clearTimeout(toastTimer.current)
-    toastTimer.current = setTimeout(() => setToast(null), 4000)
-  }
-
-  // ---- 交互（左侧 Model Controls） ----
-  const handleRotate = () => {
-    setSpinKey((k) => k + 1)
-    api
-      .trackInteraction('rotate')
-      .then(refreshStats)
-      .catch((err) => notifyError('记录交互', err))
-  }
-
-  const zoomBy = (factor, type) => {
-    const c = controlsRef.current
-    if (!c) return
-    const dir = c.object.position.clone().sub(c.target)
-    dir.multiplyScalar(factor)
-    c.object.position.copy(c.target.clone().add(dir))
-    c.update()
-    api
-      .trackInteraction(type)
-      .then(refreshStats)
-      .catch((err) => notifyError('记录交互', err))
-  }
-
-  const handleZoomIn = () => zoomBy(0.8, 'zoom_in')
-  const handleZoomOut = () => zoomBy(1.25, 'zoom_out')
-
-  const handleReset = () => {
-    const c = controlsRef.current
-    if (c) {
-      c.object.position.set(...DEFAULT_CAMERA.pos)
-      c.target.set(...DEFAULT_CAMERA.target)
-      c.update()
-    }
-    api
-      .trackInteraction('reset')
-      .then(refreshStats)
-      .catch((err) => notifyError('记录交互', err))
-  }
-
-  // ---- 动作（Actions） ----
-  const handleAction = async (name) => {
-    setActiveAction(name)
-    setActionKey((k) => k + 1)
-    try {
-      await api.triggerAction(name)
-    } catch (err) {
-      notifyError(`触发动作 ${name}`, err)
-    }
-    refreshStats()
-  }
-
   return (
     <div className="app-shell">
-      <a className="skip-link" href="#experience">
-        Skip to experience
+      <a className="skip-link" href="#page-content">
+        跳到主要内容
       </a>
-      {toast && (
-        <div className="toast toast-err" role="alert">
-          {toast}
-        </div>
-      )}
       <header className="header">
         <a
           className="brand"
-          href="#experience"
-          aria-label="The Rock Studio, experience"
+          href="/"
+          aria-label="The Rock Studio，返回 3D 操作"
         >
           <span className="brand-mark">
             <Icon name="cube" />
@@ -166,90 +93,77 @@ export default function App() {
             THE ROCK<span className="brand-sub">INTERACTIVE STUDIO</span>
           </span>
         </a>
-        <nav className="header-nav" aria-label="Main navigation">
-          <a href="#experience">Experience</a>
-          <a href="#store">
-            Merch store <Icon name="arrow" />
+        <nav className="header-nav" aria-label="页面导航">
+          <a href="/" aria-current={!isStore ? 'page' : undefined}>
+            3D 操作
+          </a>
+          <a href="/store" aria-current={isStore ? 'page' : undefined}>
+            商品商店 <Icon name="arrow" />
           </a>
         </nav>
       </header>
 
-      <div className="intro">
+      <div className={`intro${isStore ? ' store-intro' : ''}`}>
         <div>
-          <p className="eyebrow">A LITTLE WORLD TO EXPLORE</p>
+          <p className="eyebrow">
+            {isStore ? 'THE ROCK / THE COLLECTION' : 'A LITTLE WORLD TO EXPLORE'}
+          </p>
           <h1>
-            Small world. <span>Big personality.</span>
+            {isStore ? (
+              <>
+                Find your favorite. <span>Make it yours.</span>
+              </>
+            ) : (
+              <>
+                Small world. <span>Big personality.</span>
+              </>
+            )}
           </h1>
           <p className="intro-copy">
-            Meet The Rock. Explore the garden, try a move, and make it yours.
+            {isStore
+              ? '挑一件喜欢的商品，把小世界里的乐趣带回家。'
+              : '探索花园，切换动作，从每个角度认识 The Rock。'}
           </p>
         </div>
         <span className="edition">
-          THE INTERACTIVE COLLECTION <span>VOL. 01 / THE GARDEN</span>
+          THE INTERACTIVE COLLECTION
+          <span>{isStore ? '02 / THE STORE' : '01 / THE GARDEN'}</span>
         </span>
       </div>
 
-      <div className="layout">
-        <Controls
-          onRotate={handleRotate}
-          onZoomIn={handleZoomIn}
-          onZoomOut={handleZoomOut}
-          onReset={handleReset}
-          onAction={handleAction}
-          activeAction={action}
-        />
-
-        <main
-          className="scene-card"
-          id="experience"
-          tabIndex={-1}
-          aria-labelledby="scene-title"
-        >
-          <div className="scene-header">
-            <div>
-              <p className="eyebrow">THE PLAYGROUND</p>
-              <h2 id="scene-title">A moment in the garden</h2>
-            </div>
-            <span className="scene-badge">3D EXPLORER</span>
+      <main
+        className={`layout${isStore ? ' store-layout' : ''}`}
+        id="page-content"
+        tabIndex={-1}
+        aria-label={isStore ? '商品购买' : '3D 互动体验'}
+      >
+        {isStore ? (
+          <div className="store-content">
+            <OrderPanel />
+            <a className="page-link" href="/">
+              <span>
+                <strong>返回 3D 操作</strong>
+                <span>回到花园，继续探索和切换人物动作。</span>
+              </span>
+              <Icon name="arrow" />
+            </a>
           </div>
-          <div
-            className="viewport"
-            aria-label="Interactive 3D character in a garden"
+        ) : (
+          <Suspense
+            fallback={
+              <section className="panel page-loading" role="status">
+                正在加载 3D 操作界面…
+              </section>
+            }
           >
-            <div className="scene-canvas">
-              <Scene
-                action={action}
-                actionKey={actionKey}
-                spinKey={spinKey}
-                controlsRef={controlsRef}
-              />
-            </div>
-            <div className="viewport-hint">
-              <span>Drag to rotate</span>
-              <span>Scroll or pinch to zoom</span>
-            </div>
-          </div>
-          <div className="scene-caption">
-            <span className="scene-number">01</span>
-            <div>
-              <strong>The Rock</strong>
-              <p className="model-info">
-                {modelInfo
-                  ? `${modelInfo.name} · ${modelInfo.model} · ${modelInfo.status}`
-                  : 'Model information loading…'}
-              </p>
-            </div>
-            <span className="scene-angle">
-              360°<span>YOUR PERSPECTIVE</span>
-            </span>
-          </div>
-        </main>
+            <ExperiencePage refreshStats={refreshStats} />
+          </Suspense>
+        )}
 
         <div className="right-col">
-          <OrderPanel />
           <Stats online={online} latency={latency} stats={stats} />
         </div>
-      </div>
+      </main>
       <footer className="footer">
         <span>A little curiosity goes a long way.</span>
         <span>
