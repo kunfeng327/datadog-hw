@@ -2,7 +2,7 @@ import Icon from './Icon.jsx'
 
 /**
  * Controls — 左侧面板：Model Controls + Actions。
- * 所有按钮都会通过回调通知 App，由 App 统一调用后端 API。
+ * 所有按钮通过回调通知 3D 页面，由页面统一调用后端 API。
  */
 export default function Controls({
   onRotate,

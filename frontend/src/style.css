@@ -125,26 +125,34 @@ select {
 .header-nav {
   display: flex;
   align-items: center;
-  gap: 28px;
+  gap: 4px;
+  padding: 4px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--panel);
   font-size: 14px;
   font-weight: 600;
 }
 .header-nav a {
-  padding: 10px 0;
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  justify-content: center;
+  padding: 10px 18px;
+  border-radius: 8px;
+  color: var(--muted);
+  white-space: nowrap;
+  transition:
+    background-color 140ms ease,
+    color 140ms ease;
 }
 .header-nav a:hover {
-  color: var(--accent);
-  text-decoration: underline;
-  text-underline-offset: 5px;
+  color: var(--text);
+  background: var(--soft);
 }
-.header-nav a:last-child {
-  display: flex;
-  gap: 16px;
-  align-items: center;
-  border: 1px solid var(--border);
-  border-radius: 30px;
-  padding: 10px 18px;
-  background: var(--panel);
+.header-nav a[aria-current='page'] {
+  color: #fff;
+  background: var(--accent);
 }
 .header-nav .icon {
   width: 17px;
@@ -202,6 +210,10 @@ h1 span {
 }
 .layout > * {
   min-width: 0;
+}
+.page-loading {
+  grid-column: span 2;
+  min-height: var(--scene-height);
 }
 .panel,
 .scene-card {
@@ -475,6 +487,52 @@ h1 span {
   flex-direction: column;
   gap: 16px;
 }
+.store-layout {
+  grid-template-columns: minmax(0, 1fr) 312px;
+  align-items: start;
+}
+.store-layout,
+.store-intro {
+  max-width: 1080px;
+  margin-inline: auto;
+}
+.store-content {
+  display: grid;
+  gap: 18px;
+}
+.store-content .order-panel {
+  padding: 30px;
+}
+.store-content .order-form label,
+.store-content .order-panel .panel-copy {
+  font-size: 14px;
+}
+.page-link {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 20px 24px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--soft);
+  transition: background-color 140ms ease;
+}
+.page-link:hover {
+  background: #e1ead8;
+}
+.page-link strong,
+.page-link span span {
+  display: block;
+}
+.page-link strong {
+  font-size: 14px;
+}
+.page-link span span {
+  margin-top: 4px;
+  font-size: 13px;
+  color: var(--muted);
+}
 .order-header {
   display: flex;
   justify-content: space-between;
@@ -744,7 +802,7 @@ h1 span {
 }
 
 @media (min-width: 1500px) {
-  .layout {
+  .layout:not(.store-layout) {
     grid-template-columns: 256px minmax(0, 1fr) 332px;
     gap: 24px;
   }
@@ -757,7 +815,7 @@ h1 span {
   .app-shell {
     padding-inline: 24px;
   }
-  .layout {
+  .layout:not(.store-layout) {
     grid-template-columns: 204px minmax(0, 1fr) 288px;
     gap: 14px;
   }
@@ -789,14 +847,14 @@ h1 span {
 }
 
 @media (max-width: 980px) {
-  .layout {
+  .layout:not(.store-layout) {
     grid-template-columns: 220px minmax(0, 1fr);
   }
   .right-col {
     grid-column: 1 / -1;
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    align-items: start;
+  }
+  .store-layout .right-col {
+    grid-column: auto;
   }
   .scene-badge {
     display: inline-block;
@@ -816,7 +874,9 @@ h1 span {
   }
   .header {
     min-height: 80px;
-    gap: 12px;
+    flex-wrap: wrap;
+    gap: 16px;
+    padding-block: 16px;
   }
   .brand {
     font-size: 17px;
@@ -836,15 +896,12 @@ h1 span {
     letter-spacing: 1.4px;
   }
   .header-nav {
-    gap: 0;
-    font-size: 12px;
+    width: 100%;
+    font-size: 14px;
   }
-  .header-nav a:first-child {
-    display: none;
-  }
-  .header-nav a:last-child {
-    padding: 9px 12px;
-    gap: 8px;
+  .header-nav a {
+    flex: 1;
+    min-height: 44px;
   }
   .header-nav .icon {
     width: 14px;
@@ -864,13 +921,17 @@ h1 span {
     font-size: 14px;
     max-width: 330px;
   }
-  .layout {
+  .layout,
+  .layout:not(.store-layout) {
     grid-template-columns: minmax(0, 1fr);
     gap: 16px;
   }
   .scene-card {
     grid-row: 1;
     min-height: 0;
+  }
+  .page-loading {
+    grid-column: auto;
   }
   .scene-header {
     padding: 16px;
@@ -945,7 +1006,9 @@ h1 span {
   }
   .right-col {
     grid-column: auto;
-    grid-template-columns: 1fr;
+  }
+  .store-content .order-panel {
+    padding: 22px;
   }
   .order-form select,
   .order-form input {
