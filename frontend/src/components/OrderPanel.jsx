@@ -1,5 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { api } from '../api/client.js'
+import Icon from './Icon.jsx'
+
+const money = new Intl.NumberFormat('zh-CN', {
+  style: 'currency',
+  currency: 'CNY',
+  maximumFractionDigits: 2,
+})
 
 /**
  * OrderPanel — 购买模型手办（业务动作 demo）。
@@ -63,44 +70,113 @@ export default function OrderPanel() {
     }
   }
 
+  const selectedItem = items.find((item) => item.id === itemId)
+
   return (
-    <section className="order-panel">
+    <section
+      className="panel order-panel"
+      id="store"
+      aria-labelledby="store-title"
+    >
       <div className="order-header">
-        <h2>Merch Store</h2>
-        <button className="btn-mini" onClick={loadItems}>刷新库存</button>
+        <div>
+          <p className="eyebrow">A LITTLE SOMETHING FOR YOU</p>
+          <h2 id="store-title">Take it home.</h2>
+        </div>
+        <button
+          className="btn-mini"
+          onClick={loadItems}
+          aria-label="刷新库存 / Refresh stock"
+          title="刷新库存 / Refresh stock"
+        >
+          <Icon name="refresh" />
+        </button>
       </div>
+      <p className="panel-copy">Your next collectible is a click away.</p>
 
       {items.length === 0 ? (
-        <div className="order-empty">加载商品中…</div>
+        <div className="order-empty" role="status">
+          加载商品中… / Loading collection…
+        </div>
       ) : (
         <>
-          <div className="order-form">
-            <select value={itemId} onChange={(e) => { itemIdRef.current = e.target.value; setItemId(e.target.value) }}>
+          <form
+            className="order-form"
+            aria-busy={loading}
+            onSubmit={(event) => {
+              event.preventDefault()
+              submit()
+            }}
+          >
+            <label htmlFor="order-item">
+              Choose your collectible <span>商品</span>
+            </label>
+            <select
+              id="order-item"
+              value={itemId}
+              onChange={(e) => {
+                itemIdRef.current = e.target.value
+                setItemId(e.target.value)
+              }}
+            >
               {items.map((it) => (
                 <option key={it.id} value={it.id}>
-                  {it.name}（¥{it.price} · 库存 {it.stock}）
+                  {it.name}
                 </option>
               ))}
             </select>
+            {selectedItem && (
+              <div className="product-details">
+                <strong>{money.format(selectedItem.price)}</strong>
+                <span>
+                  库存 {selectedItem.stock} ·{' '}
+                  {selectedItem.stock > 0 ? 'available' : 'sold out'}
+                </span>
+              </div>
+            )}
+            <label htmlFor="order-quantity">
+              Quantity <span>数量</span>
+            </label>
             <input
+              id="order-quantity"
               type="number"
               min="1"
               value={quantity}
-              onChange={(e) => setQuantity(Math.max(1, Number(e.target.value) || 1))}
+              onChange={(e) =>
+                setQuantity(Math.max(1, Number(e.target.value) || 1))
+              }
             />
-            <button onClick={submit} disabled={loading || !itemId}>
-              {loading ? '下单中…' : '购买'}
+            <button
+              className="purchase-btn"
+              type="submit"
+              disabled={loading || !itemId}
+            >
+              <span>
+                {loading ? '下单中… / Placing order…' : '购买 / Place order'}
+              </span>
+              <Icon name="arrow" />
             </button>
-          </div>
-
-          {result && (
-            <div className={`order-result ${result.ok ? 'ok' : 'err'}`}>
-              {result.ok
-                ? `✅ confirmed · 订单号 ${result.orderId} · 剩余库存 ${result.stockLeft}`
-                : `❌ declined（${result.status ?? 'error'}）：${result.error}`}
-            </div>
-          )}
+          </form>
         </>
+      )}
+      {result && (
+        <div
+          className={`order-result ${result.ok ? 'ok' : 'err'}`}
+          role="status"
+          aria-live="polite"
+          aria-atomic="true"
+        >
+          <strong>
+            {result.ok
+              ? 'Order confirmed / 购买成功'
+              : `Order declined / 下单失败 (${result.status ?? 'error'})`}
+          </strong>
+          <p>
+            {result.ok
+              ? `订单号 ${result.orderId} · 剩余库存 ${result.stockLeft}`
+              : result.error}
+          </p>
+        </div>
       )}
     </section>
   )

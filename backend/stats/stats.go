@@ -18,7 +18,7 @@ type Counters struct {
 	Interactions atomic.Int64
 	// Actions: action 触发次数
 	Actions atomic.Int64
-	// Errors: 处理中产生的错误次数（如非法 action 返回 400）
+	// Errors: /api/ 请求的 HTTP 4xx/5xx 响应数，由中间件每请求累计一次。
 	Errors atomic.Int64
 }
 

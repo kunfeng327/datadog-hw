@@ -15,7 +15,6 @@ type interactionRequest struct {
 func HandleInteraction(w http.ResponseWriter, r *http.Request) {
 	var req interactionRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		stats.IncErrors()
 		writeError(w, http.StatusBadRequest, "invalid JSON body")
 		return
 	}

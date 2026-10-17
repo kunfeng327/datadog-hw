@@ -4,6 +4,7 @@ import (
 	"log"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"datadog-demo/backend/datadog"
@@ -12,15 +13,32 @@ import (
 	httptrace "gopkg.in/DataDog/dd-trace-go.v1/contrib/net/http"
 )
 
-// statusRecorder 记录响应状态码，供日志中间件使用。
+// statusRecorder 记录实际响应状态码，供日志与统计中间件使用。
 type statusRecorder struct {
 	http.ResponseWriter
-	status int
+	status      int
+	wroteHeader bool
 }
 
 func (r *statusRecorder) WriteHeader(code int) {
+	if r.wroteHeader {
+		return
+	}
+	// Informational responses may precede the final response status.
+	if code >= 100 && code < 200 && code != http.StatusSwitchingProtocols {
+		r.ResponseWriter.WriteHeader(code)
+		return
+	}
 	r.status = code
+	r.wroteHeader = true
 	r.ResponseWriter.WriteHeader(code)
+}
+
+func (r *statusRecorder) Write(body []byte) (int, error) {
+	if !r.wroteHeader {
+		r.WriteHeader(http.StatusOK)
+	}
+	return r.ResponseWriter.Write(body)
 }
 
 // withLogging 请求日志中间件：method path status latency。
@@ -42,7 +60,7 @@ func withLogging(next http.Handler) http.Handler {
 				"url":         map[string]any{"path": r.URL.Path},
 				"status_code": rec.status,
 			},
-			"network": map[string]any{"client": map[string]any{"ip": r.RemoteAddr}},
+			"network":  map[string]any{"client": map[string]any{"ip": r.RemoteAddr}},
 			"duration": latency.Milliseconds(),
 		}
 		statusTag := "status:" + strconv.Itoa(rec.status)
@@ -78,13 +96,20 @@ func withCORS(next http.Handler) http.Handler {
 	})
 }
 
-// withStats 统计中间件：对 /api/ 前缀请求计数。
+// withStats counts API requests and their final 4xx/5xx responses in one place,
+// including errors copied directly from order-service and mux-generated errors.
 func withStats(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if len(r.URL.Path) >= 5 && r.URL.Path[:5] == "/api/" {
-			stats.IncTotalRequests()
+		if !strings.HasPrefix(r.URL.Path, "/api/") {
+			next.ServeHTTP(w, r)
+			return
 		}
-		next.ServeHTTP(w, r)
+		stats.IncTotalRequests()
+		rec := &statusRecorder{ResponseWriter: w, status: http.StatusOK}
+		next.ServeHTTP(rec, r)
+		if rec.status >= 400 && rec.status < 600 {
+			stats.IncErrors()
+		}
 	})
 }
 

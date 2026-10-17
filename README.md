@@ -59,6 +59,12 @@ npm run dev   # http://localhost:5173
 | GET    | /api/items        | 商品列表（透传 order-service） |
 | POST   | /api/order        | 下单购买（跨服务调用 order-service） |
 
+页面中的 **API Errors** 来自 `/api/stats.errors`：统计当前后端进程自启动以来，
+`/api/` 请求返回 HTTP 4xx/5xx 的次数，每个失败请求只计一次。
+包含订单透传错误（如 404、409、502），同时沿用 `rock3d.errors` 自定义指标上报；
+服务重启后归零，多副本各自计数。未到达后端的网络故障（如浏览器断网、后端
+完全不可达）不会计入。页面在健康检查成功后按原有轮询刷新统计。
+
 ### order-service (:9100)
 
 | Method | Path     | 说明 |
